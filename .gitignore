@@ -1,3 +1,6 @@
-soal.txt
-future_updates.txt
+*.txt
 pkg/
+*.png
+*.pdf
+*.docx
+*.Identifier
