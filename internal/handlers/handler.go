@@ -21,13 +21,74 @@ func NewHandler(service services.Service) *Handler {
 }
 
 func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
-	var product models.Product
-	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+	// Define the required struct for the request body
+	var req struct {
+		UserID      string `json:"user_id"`
+		BrandID     string `json:"brand_id"`
+		WarehouseID string `json:"warehouse_id"`
+		Name        string `json:"name"`
+		CreatedBy   string `json:"created_by"`
+		UpdatedBy   string `json:"updated_by"`
+	}
+
+	// Decode the request body into the req struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	newProduct, err := h.Service.CreateProduct(&product)
+	// Validate required fields
+	if req.UserID == "" || req.BrandID == "" || req.WarehouseID == "" || req.Name == "" || req.CreatedBy == "" || req.UpdatedBy == "" {
+		http.Error(w, "user_id, brand_id, warehouse_id, name, created_by, and updated_by fields are required", http.StatusBadRequest)
+		return
+	}
+
+	// Ensure that created_by is equal to updated_by
+	if req.CreatedBy != req.UpdatedBy {
+		http.Error(w, "created_by must be equal to updated_by", http.StatusBadRequest)
+		return
+	}
+
+	UserID, err := strconv.ParseInt(req.UserID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
+		return
+	}
+
+	BrandID, err := strconv.ParseInt(req.BrandID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid brand_id format", http.StatusBadRequest)
+		return
+	}
+
+	WarehouseID, err := strconv.ParseInt(req.WarehouseID, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid user_id format", http.StatusBadRequest)
+		return
+	}
+
+	// Validate that the CreatedBy user has user_type "admin"
+	users, err := h.Service.GetUserByUsername(req.CreatedBy)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusBadRequest)
+		return
+	}
+	if users.UserType != "admin" {
+		http.Error(w, "Only admin users are allowed to create products", http.StatusForbidden)
+		return
+	}
+
+	// Create the product model from the request data
+	product := &models.Product{
+		UserID:      UserID,
+		BrandID:     BrandID,
+		WarehouseID: WarehouseID,
+		Name:        req.Name,
+		CreatedBy:   req.CreatedBy,
+		UpdatedBy:   req.UpdatedBy,
+	}
+
+	newProduct, err := h.Service.CreateProduct(product)
 	if err != nil {
 		http.Error(w, "Failed to create product", http.StatusInternalServerError)
 		return
@@ -35,7 +96,11 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newProduct)
+	response := map[string]interface{}{
+		"message": "Product successfully created",
+		"product": newProduct,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) ListProducts(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +188,7 @@ func (h *Handler) UpdateVariant(w http.ResponseWriter, r *http.Request) {
 	// Convert the stock string to int
 	stock, err := strconv.Atoi(req.Stock)
 	if err != nil {
-		http.Error(w, "Invalid price format", http.StatusBadRequest)
+		http.Error(w, "Invalid stock format", http.StatusBadRequest)
 		return
 	}
 
@@ -155,7 +220,12 @@ func (h *Handler) UpdateVariant(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(updatedVariant)
+	// response body
+	response := map[string]interface{}{
+		"message": "Variant successfully updated",
+		"product": updatedVariant,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) SoftDeleteProduct(w http.ResponseWriter, r *http.Request) {
