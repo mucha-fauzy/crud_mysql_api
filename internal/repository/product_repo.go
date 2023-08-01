@@ -21,7 +21,8 @@ func (r *RepositoryImpl) CreateProduct(product *models.Product) (*models.Product
 		INSERT INTO products (user_id, brand_id, warehouse_id, name, created_at, created_by, updated_at, updated_by)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
-
+	product.CreatedAt = time.Now()
+	product.UpdatedAt = time.Now()
 	result, err := r.DB.Write.Exec(
 		query,
 		product.UserID,
