@@ -223,7 +223,7 @@ func (h *Handler) UpdateVariant(w http.ResponseWriter, r *http.Request) {
 	// response body
 	response := map[string]interface{}{
 		"message": "Variant successfully updated",
-		"product": updatedVariant,
+		"variant": updatedVariant,
 	}
 	json.NewEncoder(w).Encode(response)
 }
